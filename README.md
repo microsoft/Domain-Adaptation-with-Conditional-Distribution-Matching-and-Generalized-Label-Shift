@@ -1,14 +1,66 @@
-# Project
+## DIGITS EXPERIMENTS
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+To download the datasets, you can e.g. unpack the following [file](https://github.com/thuml/CDAN/blob/master/data/usps2mnist/images.tar.gz) in data/digits.
+For the sake of speed when running experiments, the code generates a pkl file containing the whole datasets (when first run) and then loads it at runtime.
 
-As the maintainer of this project, please make a few updates:
+To run the code on the original datasets, run:
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+`python train_digits.py {method} --task {task}`
+
+where method belongs to: [`CDAN`, `CDAN-E`, `DANN`, `IWDAN`, `NANN`, `IWDANORACLE`, `IWCDAN`, `IWCDANORACLE`, `IWCDAN-E`, `IWCDAN-EORACLE`] and task is either mnist2usps or usps2mnist.
+
+To run the code on the subsampled datasets, run:
+
+`python train_digits.py {method} --task {task} --ratio 1`
+
+To reproduce Figs. 1 and 2, run the following command with various seeds:
+
+`python train_digits.py {method} --ratio {ratio}`
+
+where ratio belongs to 100 <= ratio < 150 (to subsample the target) or to 200 <= ratio < 250 (to subsample the source). Each corresponds to a given subsampling, the exact fractions can be found in the subsampling list of `data_list.txt.
+
+## VISDA AND OFFICE DATASETS
+
+The Visda dataset can be found here: https://github.com/VisionLearningGroup/taskcv-2017-public.
+
+The Office-31 dataset can be found here: https://people.eecs.berkeley.edu/~jhoffman/domainadapt.
+
+The Office-Home dataset can be found here: http://hemanthdv.org/OfficeHome-Dataset.
+
+They should be downloaded and placed in the corresponding folder under data. The code will generate a test file once for faster evaluation, it might take a while during the first visda run.
+
+### Discriminator based methods
+
+To run the code on the original datasets, run:
+
+`python train_image.py {method} --dset {dset} --s_dset_file {s_dset_file} --t_dset_file {t_dset_file}`
+
+where:
+  - `method` belongs to [`CDAN`, `CDAN-E`, `DANN`, `IWDAN`, `NANN`, `IWDANORACLE`, `IWCDAN`, `IWCDANORACLE`, `IWCDAN-E`, `IWCDAN-EORACLE`]
+  - `dset` belongs to [`visda`, `office-31`, `office-home`]
+  - `s_dset_file` corresponds to the source domain, the filename can be found in the corresponding data folder, e.g. `dslr_list.txt` (not needed for VISDA)
+  - `t_dset_file` corresponds to the target domain, the filename can be found in the corresponding data folder, e.g. `amazon_list.txt` (not needed for VISDA).
+
+To run the code on the subsampled datasets, run the same command with `--ratio 1` appended to it.
+
+### MMD-based methods
+
+To run the MMD algorithms (e.g. IWJAN), use the same commands as above with the `train_mmd.py` file.
+
+## Reference
+
+Please use the following bibtex entry if you use this code for SPIBB:
+
+```
+@misc{tachet2020domain,
+      title={Domain Adaptation with Conditional Distribution Matching and Generalized Label Shift},
+      author={Tachet des Combes, Remi and Zhao, Han and Wang, Yu-Xiang and Gordon, Geoff},
+      year={2020},
+      eprint={2003.04475},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
 
 ## Contributing
 
@@ -26,8 +78,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
