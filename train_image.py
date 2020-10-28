@@ -1,3 +1,6 @@
+# Copyright(c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import argparse
 import numpy as np
 import os
@@ -25,37 +28,24 @@ import random
 
 
 
-def image_classification_test_loaded(test_samples, test_labels, model, test_10crop=True, device='cpu'):
+def image_classification_test_loaded(test_samples, test_labels, model, device='cpu'):
     with torch.no_grad():
         test_loss = 0
         correct = 0
-        if test_10crop:
-            len_test = test_labels[0].shape[0]
-            for i in range(len_test):
-                outputs = []
-                for j in range(10):
-                    data, target = test_samples[j][i, :, :, :].unsqueeze(0), test_labels[j][i].unsqueeze(0)
-                    _, output = model(data)
-                    test_loss += nn.CrossEntropyLoss()(output, target).item()
-                    outputs.append(nn.Softmax(dim=1)(output))
-                outputs = sum(outputs)
-                pred = torch.max(outputs, 1)[1]
-                correct += pred.eq(target.data.cpu().view_as(pred)).sum().item()
-        else:
-            len_test = test_labels.shape[0]
-            bs = 72
-            for i in range(int(len_test / bs)):
-                data, target = torch.Tensor(test_samples[bs*i:bs*(i+1), :, :, :]).to(config["device"]), test_labels[bs*i:bs*(i+1)]
-                _, output = model(data)
-                test_loss += nn.CrossEntropyLoss()(output, target).item()
-                pred = torch.max(output, 1)[1]
-                correct += pred.eq(target.data.view_as(pred)).sum().item()
-            # Last test samples
-            data, target = torch.Tensor(test_samples[bs*(i+1):, :, :, :]).to(config["device"]), test_labels[bs*(i+1):]
+        len_test = test_labels.shape[0]
+        bs = 72
+        for i in range(int(len_test / bs)):
+            data, target = torch.Tensor(test_samples[bs*i:bs*(i+1), :, :, :]).to(config["device"]), test_labels[bs*i:bs*(i+1)]
             _, output = model(data)
             test_loss += nn.CrossEntropyLoss()(output, target).item()
             pred = torch.max(output, 1)[1]
             correct += pred.eq(target.data.view_as(pred)).sum().item()
+        # Last test samples
+        data, target = torch.Tensor(test_samples[bs*(i+1):, :, :, :]).to(config["device"]), test_labels[bs*(i+1):]
+        _, output = model(data)
+        test_loss += nn.CrossEntropyLoss()(output, target).item()
+        pred = torch.max(output, 1)[1]
+        correct += pred.eq(target.data.view_as(pred)).sum().item()
     accuracy = correct / len_test
     test_loss /= len_test * 10
     return accuracy
@@ -71,10 +61,7 @@ def train(config):
     prep_config = config["prep"]
     prep_dict["source"] = prep.image_train(**config["prep"]['params'])
     prep_dict["target"] = prep.image_train(**config["prep"]['params'])
-    if prep_config["test_10crop"]:
-        prep_dict["test"] = prep.image_test_10crop(**config["prep"]['params'])
-    else:
-        prep_dict["test"] = prep.image_test(**config["prep"]['params'])
+    prep_dict["test"] = prep.image_test(**config["prep"]['params'])
 
     ## prepare data
     print("Preparing data", flush=True)
@@ -93,16 +80,10 @@ def train(config):
     dset_loaders["target"] = DataLoader(dsets["target"], batch_size=train_bs, \
             shuffle=True, num_workers=4, drop_last=True)
 
-    if prep_config["test_10crop"]:
-        dsets["test"] = [ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                    transform=prep_dict["test"][i], root_folder=root_folder, ratios=config["ratios_test"]) for i in range(10)]
-        dset_loaders["test"] = [DataLoader(dset, batch_size=test_bs, \
-                            shuffle=False, num_workers=4) for dset in dsets['test']]
-    else:
-        dsets["test"] = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                  transform=prep_dict["test"], root_folder=root_folder, ratios=config["ratios_test"])
-        dset_loaders["test"] = DataLoader(dsets["test"], batch_size=test_bs, \
-                                shuffle=False, num_workers=4)
+    dsets["test"] = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
+                                transform=prep_dict["test"], root_folder=root_folder, ratios=config["ratios_test"])
+    dset_loaders["test"] = DataLoader(dsets["test"], batch_size=test_bs, \
+                            shuffle=False, num_workers=4)
 
     test_path = os.path.join(root_folder, data_config["test"]["dataset_path"])
     if os.path.exists(test_path):
@@ -114,23 +95,12 @@ def train(config):
         print('Missing test dataset', flush=True)
         print('Building dataset for test and writing to {}'.format(
             test_path), flush=True)
-        if prep_config["test_10crop"]:
-            dsets_test = [ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                    transform=prep_dict["test"][i], root_folder=root_folder) for i in range(10)]
-            loaded_dsets_test = [LoadedImageList(
-                dset_test) for dset_test in dsets_test]
-            test_samples, test_labels = [loaded_dset_test.samples.numpy() for loaded_dset_test in loaded_dsets_test], \
-                                        [loaded_dset_test.targets.numpy()
-                                         for loaded_dset_test in loaded_dsets_test]
-            with open(test_path, 'wb') as f:
-                pickle.dump([test_samples, test_labels], f)
-        else:
-            dset_test = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                  transform=prep_dict["test"], root_folder=root_folder, ratios=config['ratios_test'])
-            loaded_dset_test = LoadedImageList(dset_test)
-            test_samples, test_labels = loaded_dset_test.samples.numpy(), loaded_dset_test.targets.numpy()
-            with open(test_path, 'wb') as f:
-                pickle.dump([test_samples, test_labels], f)
+        dset_test = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
+                                transform=prep_dict["test"], root_folder=root_folder, ratios=config['ratios_test'])
+        loaded_dset_test = LoadedImageList(dset_test)
+        test_samples, test_labels = loaded_dset_test.samples.numpy(), loaded_dset_test.targets.numpy()
+        with open(test_path, 'wb') as f:
+            pickle.dump([test_samples, test_labels], f)
 
     class_num = config["network"]["params"]["class_num"]
     test_samples, test_labels = sample_ratios(
@@ -228,7 +198,7 @@ def train(config):
     for i in range(config["num_iterations"]):
         if i % config["test_interval"] == config["test_interval"] - 1:
             base_network.train(False)
-            temp_acc = image_classification_test_loaded(test_samples, test_labels, base_network, test_10crop=prep_config["test_10crop"])
+            temp_acc = image_classification_test_loaded(test_samples, test_labels, base_network)
             temp_model = nn.Sequential(base_network)
             if temp_acc > best_acc:
                 best_acc = temp_acc
@@ -427,7 +397,7 @@ if __name__ == "__main__":
         if not osp.exists(config["output_path"]):
             os.mkdir(config["output_path"])
 
-        config["prep"] = {"test_10crop":False, 'params':{"resize_size":256, "crop_size":224, 'alexnet':False}}
+        config["prep"] = {'params':{"resize_size":256, "crop_size":224, 'alexnet':False}}
         config["loss"] = {"trade_off":args.trade_off}
         if "AlexNet" in args.net:
             config["prep"]['params']['alexnet'] = True

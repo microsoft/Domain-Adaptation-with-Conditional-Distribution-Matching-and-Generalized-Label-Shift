@@ -1,3 +1,6 @@
+# Copyright(c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import torch.nn.functional as F
 import logging
 import numpy as np
@@ -328,51 +331,6 @@ class VGGFc(nn.Module):
             {"params": self.parameters(), "lr_mult": 1, 'decay_mult': 2}]
     return parameter_list
 
-# For SVHN dataset
-
-
-class DTN(nn.Module):
-    def __init__(self, ma=0.0):
-        super(DTN, self).__init__()
-        self.conv_params = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(64),
-            nn.Dropout2d(0.1),
-            nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(128),
-            nn.Dropout2d(0.3),
-            nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(256),
-            nn.Dropout2d(0.5),
-            nn.ReLU()
-        )
-
-        self.fc_params = nn.Sequential(
-            nn.Linear(256*4*4, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout()
-        )
-
-        class_num = 10
-
-        self.classifier = nn.Linear(512, class_num)
-        self.__in_features = 512
-
-        self.im_weights_update = create_im_weights_update(self, ma, class_num)
-
-    def forward(self, x):
-        x = self.conv_params(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc_params(x)
-        y = self.classifier(x)
-        return x, y
-
-    def output_num(self):
-        return self.__in_features
-
 
 class LeNet(nn.Module):
     def __init__(self, ma=0.0):
@@ -464,28 +422,6 @@ class GradientReversalLayer(torch.autograd.Function):
 
 def grad_reverse(tensor):
     return GradientReversalLayer.apply(tensor)
-
-
-class ConvNet(nn.Module):
-    """
-    Vanilla CNN for classification.
-    """
-
-    def __init__(self, configs):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.fc = nn.Linear(1280, 100)
-        self.softmax = nn.Linear(100, configs["num_classes"])
-        self.num_classes = configs["num_classes"]
-
-    def forward(self, inputs):
-        feats = F.relu(self.conv1(inputs))
-        feats = F.relu(self.conv2(feats))
-        feats = feats.view(-1, 1280)
-        feats = F.relu(self.fc(feats))
-        logprobs = F.log_softmax(self.softmax(feats), dim=1)
-        return logprobs
 
 
 class ResNet50Fc(nn.Module):

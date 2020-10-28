@@ -1,3 +1,6 @@
+# Copyright(c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import argparse
 import os, sys
 import os.path as osp
@@ -48,10 +51,7 @@ def transfer_classification(config):
     prep_config = config["prep"]
     prep_dict["source"] = prep.image_train(**prep_config['params'])
     prep_dict["target"] = prep.image_train(**prep_config['params'])
-    if prep_config["test_10crop"]:
-        prep_dict["test"] = prep.image_test_10crop(**prep_config['params'])
-    else:
-        prep_dict["test"] = prep.image_test(**prep_config['params'])
+    prep_dict["test"] = prep.image_test(**prep_config['params'])
 
     ## set loss
     class_criterion = nn.CrossEntropyLoss()
@@ -77,16 +77,10 @@ def transfer_classification(config):
     dset_loaders["target"] = DataLoader(dsets["target"], batch_size=train_bs,
                                         shuffle=True, num_workers=4, drop_last=True)
 
-    if prep_config["test_10crop"]:
-        dsets["test"] = [ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                   transform=prep_dict["test"][i], root_folder=root_folder, ratios=config["ratios_test"], mode=prep_config['mode']) for i in range(10)]
-        dset_loaders["test"] = [DataLoader(dset, batch_size=test_bs,
-                                           shuffle=False, num_workers=4) for dset in dsets['test']]
-    else:
-        dsets["test"] = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                  transform=prep_dict["test"], root_folder=root_folder, ratios=config["ratios_test"], mode=prep_config['mode'])
-        dset_loaders["test"] = DataLoader(dsets["test"], batch_size=test_bs,
-                                          shuffle=False, num_workers=4)
+    dsets["test"] = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
+                                transform=prep_dict["test"], root_folder=root_folder, ratios=config["ratios_test"], mode=prep_config['mode'])
+    dset_loaders["test"] = DataLoader(dsets["test"], batch_size=test_bs,
+                                        shuffle=False, num_workers=4)
 
     test_path = os.path.join(root_folder, data_config["test"]["dataset_path"])
     if os.path.exists(test_path):
@@ -97,24 +91,13 @@ def transfer_classification(config):
     else:
         print('Missing test dataset', flush=True)
         print('Building dataset for test and writing to {}'.format(test_path), flush=True)
-        if prep_config["test_10crop"]:
-            dsets_test = [ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                    transform=prep_dict["test"][i], root_folder=root_folder) for i in range(10)]
-            loaded_dsets_test = [LoadedImageList(
-                dset_test) for dset_test in dsets_test]
-            test_samples, test_labels = [loaded_dset_test.samples.numpy() for loaded_dset_test in loaded_dsets_test], \
-                                        [loaded_dset_test.targets.numpy()
-                                         for loaded_dset_test in loaded_dsets_test]
-            with open(test_path, 'wb') as f:
-                pickle.dump([test_samples, test_labels], f)
-        else:
-            dset_test = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
-                                  transform=prep_dict["test"], root_folder=root_folder, ratios=config['ratios_test'])
-            loaded_dset_test = LoadedImageList(dset_test)
-            test_samples, test_labels = loaded_dset_test.samples.numpy(
-            ), loaded_dset_test.targets.numpy()
-            with open(test_path, 'wb') as f:
-                pickle.dump([test_samples, test_labels], f)
+        dset_test = ImageList(open(osp.join(root_folder, data_config["test"]["list_path"])).readlines(),
+                                transform=prep_dict["test"], root_folder=root_folder, ratios=config['ratios_test'])
+        loaded_dset_test = LoadedImageList(dset_test)
+        test_samples, test_labels = loaded_dset_test.samples.numpy(
+        ), loaded_dset_test.targets.numpy()
+        with open(test_path, 'wb') as f:
+            pickle.dump([test_samples, test_labels], f)
 
     class_num = config["network"]["class_num"]
     test_samples, test_labels = sample_ratios(
@@ -212,11 +195,11 @@ def transfer_classification(config):
                 bottleneck_layer.train(False)
                 test_acc = image_classification_test_loaded(
                     test_samples, test_labels, nn.Sequential(
-                        base_network, bottleneck_layer, classifier_layer), test_10crop=prep_config["test_10crop"], device=device)
+                        base_network, bottleneck_layer, classifier_layer), device=device)
             else:
                 test_acc = image_classification_test_loaded(
                     test_samples, test_labels, nn.Sequential(
-                        base_network, classifier_layer), test_10crop=prep_config["test_10crop"], device=device)
+                        base_network, classifier_layer), device=device)
 
             log_str = 'Iter: %d, mmd = %.4f, test_acc = %.3f' % (
                 i, mmd_meter.avg, test_acc)
@@ -357,7 +340,7 @@ if __name__ == "__main__":
         osp.join(config["output_path"], "log_weights.txt"), "w")
     if not osp.exists(config["output_path"]):
         os.mkdir(config["output_path"])
-    config["prep"] = {"test_10crop": False, 'params': {"resize_size":256, "crop_size":224, 'alexnet':False}, 'mode':'RGB'}
+    config["prep"] = {'params': {"resize_size":256, "crop_size":224, 'alexnet':False}, 'mode':'RGB'}
     config["loss"] = {"name":args.method, "trade_off":args.trade_off }
     config["data"] = {"source":{"list_path":args.s_dset_file, "batch_size":36}, \
                       "target":{"list_path":args.t_dset_file, "batch_size":36}, \

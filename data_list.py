@@ -1,3 +1,6 @@
+# Copyright(c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 #from __future__ import print_function, division
 
 import scipy.stats
@@ -35,41 +38,27 @@ def sample_ratios(samples, labels, ratios=None):
     return samples, labels
 
 
-def image_classification_test_loaded(test_samples, test_labels, model, test_10crop=True, device='cpu'):
+def image_classification_test_loaded(test_samples, test_labels, model, device='cpu'):
     with torch.no_grad():
         test_loss = 0
         correct = 0
-        if test_10crop:
-            len_test = test_labels[0].shape[0]
-            for i in range(len_test):
-                outputs = []
-                for j in range(10):
-                    data, target = test_samples[j][i].unsqueeze(
-                        0), test_labels[j][i].unsqueeze(0)
-                    _, output = model(data)
-                    test_loss += nn.CrossEntropyLoss()(output, target).item()
-                    outputs.append(nn.Softmax(dim=1)(output))
-                outputs = sum(outputs)
-                pred = torch.max(outputs, 1)[1]
-                correct += pred.eq(target.data.cpu().view_as(pred)
-                                   ).sum().item()
-        else:
-            len_test = test_labels.shape[0]
-            bs = 72
-            for i in range(int(len_test / bs)):
-                data, target = torch.Tensor(
-                    test_samples[bs*i:bs*(i+1)]).to(device), test_labels[bs*i:bs*(i+1)]
-                output = model(data)
-                test_loss += nn.CrossEntropyLoss()(output, target).item()
-                pred = torch.max(output, 1)[1]
-                correct += pred.eq(target.data.view_as(pred)).sum().item()
-            # Last test samples
+
+        len_test = test_labels.shape[0]
+        bs = 72
+        for i in range(int(len_test / bs)):
             data, target = torch.Tensor(
-                test_samples[bs*(i+1):]).to(device), test_labels[bs*(i+1):]
+                test_samples[bs*i:bs*(i+1)]).to(device), test_labels[bs*i:bs*(i+1)]
             output = model(data)
             test_loss += nn.CrossEntropyLoss()(output, target).item()
             pred = torch.max(output, 1)[1]
             correct += pred.eq(target.data.view_as(pred)).sum().item()
+        # Last test samples
+        data, target = torch.Tensor(
+            test_samples[bs*(i+1):]).to(device), test_labels[bs*(i+1):]
+        output = model(data)
+        test_loss += nn.CrossEntropyLoss()(output, target).item()
+        pred = torch.max(output, 1)[1]
+        correct += pred.eq(target.data.view_as(pred)).sum().item()
     accuracy = correct / len_test
     test_loss /= len_test
     return accuracy
