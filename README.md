@@ -52,13 +52,23 @@ To run the MMD algorithms (e.g. IWJAN), use the same commands as above with the 
 Please consider citing us if you use this code:
 
 ```
-@misc{tachet2020domain,
+@inproceedings{tachet2020domain,
       title={Domain Adaptation with Conditional Distribution Matching and Generalized Label Shift},
       author={Tachet des Combes, Remi and Zhao, Han and Wang, Yu-Xiang and Gordon, Geoff},
       year={2020},
-      eprint={2003.04475},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+      booktitle={Advances in Neural Information Processing Systems}
+}
+```
+
+This code is based upon the work of:
+
+```
+@inproceedings{long2018conditional,
+  title={Conditional adversarial domain adaptation},
+  author={Long, Mingsheng and Cao, Zhangjie and Wang, Jianmin and Jordan, Michael I},
+  booktitle={Advances in Neural Information Processing Systems},
+  pages={1645--1655},
+  year={2018}
 }
 ```
 
