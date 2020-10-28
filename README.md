@@ -49,7 +49,7 @@ To run the MMD algorithms (e.g. IWJAN), use the same commands as above with the 
 
 ## Reference
 
-Please use the following bibtex entry if you use this code for SPIBB:
+Please consider citing us if you use this code:
 
 ```
 @misc{tachet2020domain,
